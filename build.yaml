@@ -1,0 +1,76 @@
+name: hcp-asl
+version: 1.1.0
+
+architectures:
+  - x86_64
+
+build:
+  kind: neurodocker
+
+  base-image: ubuntu:22.04
+  pkg-manager: apt
+
+  directives:
+    - environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - install:
+        - python3
+        - python3-pip
+        - python3-venv
+        - python3-dev
+        - build-essential
+        - git
+        - curl
+        - ca-certificates
+        - libhdf5-dev
+        - libfftw3-dev
+
+    - run:
+        - python3 -m pip install --upgrade pip
+
+    - run:
+        - git clone https://github.com/FidelNavarro/OpenRecon_test.git /opt/hcp-asl
+        - if [ -f /opt/hcp-asl/requirements.txt ]; then python3 -m pip install --no-cache-dir -r /opt/hcp-asl/requirements.txt; fi
+        - python3 -m pip install --no-cache-dir numpy SimpleITK ismrmrd
+
+    - run:
+        - install -m 0755 {{ get_file("run_register_open_rec.sh") }} /usr/local/bin/run_register_open_rec
+
+    - environment:
+        PYTHONPATH: /opt/hcp-asl:$PYTHONPATH
+
+files:
+  - name: run_register_open_rec.sh
+    contents: |-
+      #!/bin/bash
+      set -euo pipefail
+      python3 /opt/hcp-asl/register_open_rec.py "$@"
+
+deploy:
+  path:
+    - /opt/hcp-asl
+  bins:
+    - run_register_open_rec
+
+readme: |-
+  ----------------------------------
+  ## hcp-asl/{{ context.version }} ##
+  This container clones the FidelNavarro/OpenRecon_test repository and installs the dependencies required to run the
+  `register_open_rec.py` reconstruction workflow inside NeuroContainers. A convenience launcher (`run_register_open_rec`)
+  executes the script directly with the container's Python interpreter so that the workflow can be triggered from
+  Transparent Singularity modules or manual `ml` sessions.
+
+  Example:
+  ```
+  run_register_open_rec --help
+  ```
+
+  To run container outside of this environment: ml hcp-asl/{{ context.version }}
+
+  Source: https://github.com/FidelNavarro/OpenRecon_test
+  ----------------------------------
+
+categories:
+  - "reconstruction"
+  - "diffusion imaging"
